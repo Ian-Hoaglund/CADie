@@ -1,3 +1,17 @@
+<!--
+//RUN THIS IN COMMAND LINE TO LOCAL HOST THE WEBSITE
+
+"C:\Program Files\Google\Chrome\Application\chrome.exe"  --disable-web-security
+
+// cd documents cd ds440 cd dicom viewer 
+//python3 -m http.server 
+
+//TYPE THIS IN THE BROWSER TO SEE THE PAGE 
+//localhost:8000
+
+-->
+
+
 <html>
 <head>
 <!doctype = html5>
@@ -12,361 +26,413 @@
     </httpProtocol>
   </system.webServer>
 </configuration>
+<link rel="stylesheet" href="Stylesheets/style.css">
 
 </head>
 <body>
-<h1>CAD.IO </h1> 
-<br>
+<h1 style="font-family:'Times New Roman', Times, serif; font-size: 50px;">CAD-ie </h1> 
+<!-- A standard navbar with dropdown items--> 
+<nav> 
+  <div class="navbar">  
+      <a href = Index.html>Home</a> &nbsp 
+      <a href = DicomViewer.html>Dicom Viewer</a> &nbsp 
+      <div class="dropdown">
+          <button class="dropbtn">Computer Aided Diagnostics Models
+          </button>
+          <div class="dropdown-content">
+            <a href="Github/Github1.html">Lung Nodule Detection</a>
+            <a href="Github/Github2.html">Covid 19 Detection</a>
+            <a href="Github/Github3.html">Breast Cancer Detection</a>
+            <a href="Github/Github4.html">Brain Tumor Detection</a>
+          </div>
+        </div>
+        
+
+      <div class="dropdown">
+          <button class="dropbtn">Sample Dicom Files
+          </button>
+          <div class="dropdown-content">
+           <a href = DownloadDicom/DownloadDicom1.html >Sample chest CT</a> &nbsp 
+           <a href = DownloadDicom/DownloadDicom2.html >Sample Mammogram</a> &nbsp 
+           <a href = DownloadDicom/DownloadDicom3.html >Sample Knee MRI</a> &nbsp 
+           <a href = DownloadDicom/DownloadDicom4.html >Sample Brain CT</a> &nbsp 
+          </div>
+      </div>
+      <a href = contact.html>Contact</a>
+      </div>
+    </nav>
+<!-- end of navbar html-->
 </body>
-<div class = "parameters">
+
+<!--HTML BODY DEFINE BUTTONS FOR LOGGING INTO GOOGLE DRIVE, SELECTING FILES, MODELS, IMAGE TYPES AND TOOLS USED BY DICOM VIEWER  -->
+<div>
+
+<!--An input button for users to choose files from their computer-->
   <label for="inputfiles" class = "btn">Select file from computer:</label>
 <input type="file" id= "inputfiles" webkitdirectory directory multiple>
 
-<label for="inputfiles" class = "btn">Select file from google drive:</label>
-<input type="button" id= "drivefiles" onclick="loadPicker()" value = "Choose Files" webkitdirectory directory multiple>
-<br>
 
-<label for="imagetype">Select Image Type</label>
+<!--An input button for users to choose files from their google drive account-->
 
-<select name="imagetype" id="imagetype">
-  <option value="Xray">X-ray</option>
-  <option value="CT">CT-scan</option>
-  <option value="Mammogram">Mammogram</option>
-</select>
 
-Adjust Model Sensitivity
-<input type="range" min="1" max="100" value="50" class="slider" id="sensitivity">
-
-<button id="authorize_button" style="display: none;">Authorize</button>
-<button id="signout_button" style="display: none;">Sign Out</button>
-
-<pre id="content" style="white-space: pre-wrap;"></pre>
-</div>
-
-<div id="dicomVeiwer" style="width:512px;height:512px">
-</div>
+<!--A toolbar to allow users to select how to manipulate the displayed dicom image-->
 	
-<div id="toolbar">
-    <input type="radio" id="imagescroll" name="tools", onchange="toolSelect();">
-    <label for="contrast">Image Scroll</label>
-    <input type="radio" id="contrast" name="tools",  onchange="toolSelect();">
-    <label for="contrast">Contrast</label>
-    <input type="radio" id="ruler" name="tools",  onchange="toolSelect();">
-    <label for="ruler">Ruler</label> 
-    <input type="radio" id="zoom" name="tools",  onchange="toolSelect();">
-    <label for="zoom">Zoom</label>
-    <input type="radio" id="crosshair" name="tools",  onchange="toolSelect();">
-    <label for="crosshair">Crosshair</label>
+<div id="toolbar" style="display:block; float: center; align-content: center;">
+    <input type="radio" id="imagescroll" name="tools", class = "tool", onchange = "toolSelect()"; >
+    <label for="imagescroll">Image Scroll</label> 
+ 
+<!--</div>
+
+<div id = "Analyze" style = "display: inline; float:center;">
+-->
+    <style> 
+    .button {color: white; background-color: #008CBA; padding: 15px 32px; font-size: 16px; text-align: center; transition-duration: 0.4s}
+    .button:hover{background-color: #0066ba } 
+    </style>
+    <button id = "AnalyzeButton" onclick=ScanImages() class = "button">Show Predicted Tumor Segmentation Mask</button>
 </div>
 
+<div id="dicomViewer">
+</div>
 
+<!--NOTE: THE REST OF THIS FILE IS JAVASCRIPT THAT WAS WRITTEN FOR MY CAPSTONE PROJECT AND IS VERY COMPLICATED (AND MESSY)-->
 
 <script src="jquery.js"></script>
 <script src="jpx.min.js"></script>
+<script src="UTIF.js"></script>
 
+<!-- THIS SCRIPT CREATES A LOG-IN/AUTHENTICATION BUTTON ON THE PAGE -->
 
-<script type="text/javascript">
-
-// cd documents cd ds440 cd dicom viewer 
-//python3 -m http.server 
-//localhost:8000
-
-    // Client ID and API key from the Developer Console
-    var CLIENT_ID = '806051351940-hcuudcsuuq5u5u398m8b1midf6k56k0l.apps.googleusercontent.com';
-    var API_KEY = 'AIzaSyC1NFRYOu9hWADCbECV77TWUsVbObXiuoQ';
-
-    // Array of API discovery doc URLs for APIs used by the quickstart
-    var DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
-
-    // Authorization scopes required by the API; multiple scopes can be
-    // included, separated by spaces.
-    var SCOPES = 'https://www.googleapis.com/auth/drive.metadata.readonly';
-
-    var authorizeButton = document.getElementById('authorize_button');
-    var signoutButton = document.getElementById('signout_button');
-
-    /**
-     *  On load, called to load the auth2 library and API client library.
-     */
-    function handleClientLoad() {
-      gapi.load('client:auth2', initClient);
-    }
-
-    /**
-     *  Initializes the API client library and sets up sign-in state
-     *  listeners.
-     */
-    function initClient() {
-      gapi.client.init({
-        apiKey: API_KEY,
-        clientId: CLIENT_ID,
-        discoveryDocs: DISCOVERY_DOCS,
-        scope: SCOPES
-      }).then(function () {
-        // Listen for sign-in state changes.
-        gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
-
-        // Handle the initial sign-in state.
-        updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-        authorizeButton.onclick = handleAuthClick;
-        signoutButton.onclick = handleSignoutClick;
-      }, function(error) {
-        appendPre(JSON.stringify(error, null, 2));
-      });
-    }
-
-    /**
-     *  Called when the signed in status changes, to update the UI
-     *  appropriately. After a sign-in, the API is called.
-     */
-    function updateSigninStatus(isSignedIn) {
-      if (isSignedIn) {
-        authorizeButton.style.display = 'none';
-        signoutButton.style.display = 'block';
-        // listFiles();
-      } else {
-        authorizeButton.style.display = 'block';
-        signoutButton.style.display = 'none';
-      }
-    }
-
-    /**
-     *  Sign in the user upon button click.
-     */
-    function handleAuthClick(event) {
-      gapi.auth2.getAuthInstance().signIn();
-    }
-
-    /**
-     *  Sign out the user upon button click.
-     */
-    function handleSignoutClick(event) {
-      gapi.auth2.getAuthInstance().signOut();
-    }
-
-    /**
-     * Append a pre element to the body containing the given message
-     * as its text node. Used to display the results of the API call.
-     *
-     * @param {string} message Text to be placed in pre element.
-     */
-    function appendPre(message) {
-      var pre = document.getElementById('content');
-      var textContent = document.createTextNode(message + '\n');
-      pre.appendChild(textContent);
-    }
-    
-
-    /**
-     * Print files.
-     
-    function listFiles() {
-      gapi.client.drive.files.list({
-        'pageSize': 10,
-        'fields': "nextPageToken, files(id, name)"
-      }).then(function(response) {
-        appendPre('Files:');
-        var files = response.result.files;
-        if (files && files.length > 0) {
-          for (var i = 0; i < files.length; i++) {
-            var file = files[i];
-            appendPre(file.name + ' (' + file.id + ')');
-          }
-        } else {
-          appendPre('No files found.');
-        }
-      });
-    }
-    */
-
-  </script>
-
-<!-- Load the Google API Loader script. -->
-<script type="text/javascript" src="https://apis.google.com/js/api.js?onload=loadPicker"></script>
-
-<!--Create google file picker -->
-<script>
-  console.log(0);
-  var developerKey = 'AIzaSyC1NFRYOu9hWADCbECV77TWUsVbObXiuoQ';
-
-  // The Client ID obtained from the Google API Console. Replace with your own Client ID.
-  var clientId = "806051351940-hcuudcsuuq5u5u398m8b1midf6k56k0l.apps.googleusercontent.com"
-
-  // Replace with your own project number from console.developers.google.com.
-  // See "Project number" under "IAM & Admin" > "Settings"
-  var appId = "crypto-groove-329712";
-
-  // Scope to use to access user's Drive items.
-  var scope = ['https://www.googleapis.com/auth/drive'];
-
-  var pickerApiLoaded = false;
-  var oauthToken;
-
-  // Use the Google API Loader script to load the google.picker script.
-  function loadPicker() {
-    console.log(1);
-    gapi.load('auth', {'callback': onAuthApiLoad});
-    console.log(2);
-    gapi.load('picker', {'callback': onPickerApiLoad});
-  }
-
-  function onAuthApiLoad() {
-    console.log(3.1);
-    window.gapi.auth.authorize(
-        {
-          'client_id': clientId,
-          'scope': scope,
-          'immediate': false
-        },
-        handleAuthResult);
-  }
-
-  function onPickerApiLoad() {
-    console.log(3.2);
-    pickerApiLoaded = true;
-    createPicker();
-  }
-
-  function handleAuthResult(authResult) {
-    console.log(4);
-    if (authResult && !authResult.error) {
-      oauthToken = authResult.access_token;
-      createPicker();
-    }
-  }
-
-  // Create and render a Picker object for searching images.
-  function createPicker() {
-    console.log(5);
-    if (pickerApiLoaded && oauthToken) {
-      console.log(6);
-      var view = new google.picker.DocsView(google.picker.ViewId.DOCS)
-      .setSelectFolderEnabled(true)
-      .setIncludeFolders(true);
-      var picker = new google.picker.PickerBuilder()
-          .enableFeature(google.picker.Feature.NAV_HIDDEN)
-          .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
-          .setAppId(appId)
-          .setOAuthToken(oauthToken)
-          .addView(view)
-          .addView(new google.picker.DocsUploadView())
-          .setDeveloperKey(developerKey)
-          .setCallback(pickerCallback)
-          .build();
-      picker.setVisible(true);
-      console.log(this.data);
-    }
-  }
-
-  // A simple callback implementation.
-  function pickerCallback(data) {
-    console.log(8);
-    if (data.action == google.picker.Action.PICKED) {
-      console.log(7);
-      var fileId = data.docs[0].id;
-      let fileList = gapi.client.drive.files.list({
-          folderId: fileId
-          //fields: 'webContentLink'
-      }).then(function(success){
-    
-      console.log("anything");
-      console.log(success);
-      var fileId = success.result.files[1];
-      var xhr = new XMLHttpRequest();
-      var url = "https://www.googleapis.com/drive/v3/files/" + fileId + "?alt=media";
-      var accessToken = gapi.auth.getToken().access_token;
-      xhr.open('GET', url);
-      xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);   
-      xhr.responseType = "blob";
-      xhr.addEventListener('load', function(e) {
-        var blob = this.response;//this is your blob file
-        console.log("somthing");
-        console.log(blob);
-      });
-      xhr.send();  
-
-      }); 
-  }   
-}
-
-    function getFile(fileList, index){
-
-          //var xhr = new XMLHttpRequest();
-          //for (let i = 0; i < success.result.files.length; i++) {
-          let dicomfile = gapi.client.drive.files.get({
-            fileId: fileList.result.files[index].id,
-            alt: 'media',
-            mimeType: "application/dicom"
-             
-          });
-          return dicomfile
-      }
-
-
-</script>
-
-
-
-
-<script async defer src="https://apis.google.com/js/api.js"
-      onload="this.onload=function(){};handleClientLoad()"
-      onreadystatechange="if (this.readyState === 'complete') this.onload()">
-</script>
-
-
-
-
-
-
+<!-- LOAD LIBRARIES TO CREATE DICOM VIEWER -->
 <script src="cornerstone.min.js"></script> 
 <script src="dicomParser.min.js"></script>
 <script src="cornerstoneWADOImageLoader.min.js"></script>
+<script src="https://unpkg.com/cornerstone-web-image-loader@2.1.1/dist/cornerstoneWebImageLoader.min.js"></script>
 <script src="cornerstoneFileImageLoader.js"></script>
 <script src="jpx.min.js"></script>
-<script type= "text/javascript">
+<script src="decode-tiff.min.js"></script>
+
+<script type="module" src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
+<script type= "module">
     var position = 0;
     var num_files = 0;
     var imageIds = [];
     var contrast = 50;
-
-  $("#drivefiles").on("change", function(e){
-    console.log(e);
-    console.log("hi");
-  });
-
-
-
+    var has_invalid_files = false
+    var invalid_files = []
+    let arraylookup = {};
+  
+//THIS BLOCK OF CODE DISPLAYS ALL OF THE FILES AND PUSHES THEM INTO A QUEUE
+//const canvas =  document.querySelector('#dicomViewer canvas');
 
 
+    function tiffLoadImage(imageId) {
+       
+ 
+    // Loads an image given an imageId
+
+        const width = 256;
+        const height = 256;
+       
+        const numPixels = width * height;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const canvasContext = canvas.getContext('2d', {desynchronized: true});
+
+        const imageData = canvasContext.createImageData(width, height);
+        const { decode } = window.decodeTiff;
+        
+        let pixelData = imageData.data;
+
+        let byteArray = arraylookup[imageId]
+
+       function tiffArrayBufferToImageData(byteArray){
+            const ifds = UTIF.decode(byteArray);
+            //console.log(ifds)
+            UTIF.decodeImage(byteArray, ifds[0]);
+            const timage = ifds;
+           return UTIF.toRGBA8(ifds[0])}
+           // const array = new Uint8ClampedArray(UTIF.toRGBA8(timage));
+            //return new ImageData(array, timage.width, timage.height);
+        //}
+        
 
 
+        let pixels =  tiffArrayBufferToImageData(byteArray);
+        let index = 0;
+        let pixelindex = 0;
+        //let rgb = []; 
+        //console.log(byteArray);
+      
+    
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                pixelData[index++] = pixels[pixelindex++]; // RED
+               // rgb[index] = byteArray[pixelindex];
+                pixelData[index++] = pixels[pixelindex++]; // GREEN
+                //rgb[index] = byteArray[pixelindex];
+                pixelData[index++] = pixels[pixelindex++]; // BLUE
+                //rgb[index] = byteArray[pixelindex];
+                pixelData[index++] = pixels[pixelindex++]; // ALPHA
+            }
+        }
+  
+        canvasContext.putImageData(imageData, 0, 0);
+        
+    
+        function getPixelData() {
+            return pixelData;
+        }
+        function getImageData() {
+            return imageData;
+        }
+        function getCanvas() {
+            return canvas;
+        }
+
+        const image = {
+            imageId: imageId,
+            minPixelValue: 0,
+            maxPixelValue: 255,
+            slope: 1.0,
+            intercept: 0,
+            windowCenter: 128,
+            windowWidth: 256,
+            render: cornerstone.renderColorImage,
+            getPixelData: getPixelData,
+            getImageData: getImageData,
+            getCanvas: getCanvas,
+            rows: height,
+            columns: width,
+            height: height,
+            width: width,
+            color: true,
+            columnPixelSpacing: 1.0,
+            rowPixelSpacing: 1.0,
+            invert: false,
+            sizeInBytes: width * height * 4
+        };
+            console.log("loading Tiff image")
+            return new Promise((resolve) => resolve(image))
+}
+
+
+function pngLoadImage(imageId) {
+       
+ 
+       // Loads an image given an imageId
+   
+           const width = 256;
+           const height = 256;
+          
+           const numPixels = width * height;
+           const canvas = document.createElement('canvas');
+           canvas.width = width;
+           canvas.height = height;
+           const canvasContext = canvas.getContext('2d', {desynchronized: true});
+   
+           const imageData = canvasContext.createImageData(width, height);
+           
+           
+           let pixelData = imageData.data;
+            
+           let byteArray = arraylookup[imageId]
+           console.log(byteArray[2]);
+           //let pixels =  byteArray;
+           let index = -1;
+           //console.log(byteArray);
+           let pixelindex = -1;
+           for (let y = 0; y < height; y++) {
+               for (let x = 0; x < width; x++) {
+                
+
+                   pixelData[index++] = byteArray[pixelindex++]; // RED
+                   pixelData[index++] = byteArray[pixelindex++]; // GREEN
+                   pixelData[index++] = byteArray[pixelindex++]; // BLUE
+                   pixelData[index++] = 255; // ALPHA
+               }
+           }
+           //console.log(pixelData)
+           //pixelData = pixels
+           //console.log(pixels)
+           console.log("pngloader")
+           console.log(pixelData);
+           canvasContext.putImageData(imageData, 0, 0);
+           
+   
+           function getPixelData() {
+               return pixelData;
+           }
+           function getImageData() {
+               return imageData;
+           }
+           function getCanvas() {
+               return canvas;
+           }
+   
+           const image = {
+               imageId: imageId,
+               minPixelValue: 0,
+               maxPixelValue: 255,
+               slope: 1.0,
+               intercept: 0,
+               windowCenter: 128,
+               windowWidth: 256,
+               render: cornerstone.renderColorImage,
+               getPixelData: getPixelData,
+               getImageData: getImageData,
+               getCanvas: getCanvas,
+               rows: height,
+               columns: width,
+               height: height,
+               width: width,
+               color: true,
+               columnPixelSpacing: 1.0,
+               rowPixelSpacing: 1.0,
+               invert: false,
+               sizeInBytes: width * height * 4
+           };
+               console.log("loading PNG image")
+               return new Promise((resolve) => resolve(image))
+   }
+
+
+
+
+
+
+
+ //   cornerstone.registerImageLoader('loadCustomImage', loadCustomImage());
+    
+// Return the image object by resolving the Promise
 
     $(document).ready(function() {
-        var element = $('#dicomVeiwer').get(0);
+        var element = $('#dicomViewer').get(0);
         cornerstone.enable(element);
-        $('#inputfiles').on('change', function(e) {
+        $('#inputfiles').on('change', async function(e) {
             position = 0;
             num_files = e.target.files.length;
+            //console.log(e.target.files)
+            has_invalid_files = false;
+            invalid_files = [];
+            
             for (let i = 0; i < e.target.files.length; i++) {
-                 
                 var file = e.target.files[i];
-                var index = cornerstoneFileImageLoader.addFile(file);
-                var imageId = "dicomfile://" + index;
-                imageIds.push(imageId);  
-                var element = $('#dicomVeiwer').get(0);
-                cornerstone.loadImage(imageId).then(function(image) {
-                cornerstone.displayImage(element, image);
-            });
+               
+
+                const buffer = await file.arrayBuffer();
+                //console.log(buffer)//.result.Int8Array)
+                let byteArray = buffer;
+                //new Int8Array(buffer);
+
+                //byteArray = Int16Array.from(byteArray);
+                 
+
+                if(file.name.split(".").pop() != "dcm" && file.name.split(".").pop() != "dicom" && file.name.split(".").pop() != "tif" ){
+                    //console.log(file.name.split(".").pop());
+                    has_invalid_files = true;
+                    invalid_files.push(file.name);
+                } else {
+
+                  var index = cornerstoneFileImageLoader.addFile(file);
+                  var imageId = "tiffImageLoader://" + index;
+                  imageIds.push(imageId);  
+                  var element = $('#dicomViewer').get(0);
+                  //console.log(byteArray)
+
+                  arraylookup[imageId] = byteArray;
+           
+                cornerstone.registerImageLoader("tiffImageLoader", tiffLoadImage)
+                cornerstone.loadImage(imageId).then(function(image){
+                    //console.log(image);
+                    cornerstone.displayImage(element, image);
+                });
+            
+
+                  if(num_files < 2){
+                    console.log("adding padding");
+                    
+                    var index = cornerstoneFileImageLoader.addFile(file);
+                   
+                    var imageId = "tiffImageLoader://" + index;
+                    imageIds.push(imageId);  
+                    //console.log(imageIds);
+                  }
+                }
+              }
+              if(has_invalid_files){
+                alert("Invalid file types detected! \nOnly .dcm files are supported \nInvalid files:\n" + invalid_files.toString().replaceAll(",", "\n"));
         }
         }); 
     });
-    function toolSelect(){
+
+
+
+    document.getElementById("AnalyzeButton").onclick = async function ScanImages(){
+            console.log("Analysing image for tumor segmentation")
+            
+            const model = await tf.loadLayersModel("http://localhost:8000/TumorSegmentationModelJS/model.json");
+            cornerstone.loadImage(imageIds[position]).then(function(image){
+
+                
+                var rgb = []
+                var rgba = Array.from(image.getPixelData());
+                const ArrayLength = rgba.length
+                for (let i = 0; i < ArrayLength; i++) {
+                    if((i+1) % 4 != 0){
+                        rgb.push(rgba[i]);
+                    }
+                }
+                console.log(rgb)
+                
+
+                var a = tf.tensor(rgb, [256,256,3]).toFloat();
+                console.log(a)
+                a = tf.expandDims(a,0);
+                a = tf.sub(a, image.minPixelValue)
+                a = tf.div(a, (image.maxPixelValue - image.minPixelValue));
+                console.log(a.data())
+
+
+                let initialTime = Date.now();
+                var pred = model.predict(a);
+                let finalTime = Date.now();
+                let timeTaken = finalTime - initialTime;
+                console.log(timeTaken)
+                var b = tf.add(a, pred);
+                b = tf.div(b, (b.max().sub(b.min())));
+                b = tf.mul(b, 256);
+                b = b.toInt();
+                //console.log("hmm2")
+                //tf.browser.toPixels(tf.squeeze(b), document.querySelector('#dicomViewer canvas'));
+                console.log(b.data());
+
+                var element = $('#dicomViewer').get(0);
+                cornerstone.registerImageLoader("pngImageLoader", pngLoadImage)
+                imageIds[position] = "pngImageLoader://" + position;
+                arraylookup[imageIds[position]] = b.dataSync()
+                cornerstone.loadImage(imageIds[position]).then(function(image){
+                    //console.log(image);
+                    cornerstone.displayImage(element, image);
+                });
+            console.log("Done Analyzing Image")
+           });
+           
+        };
+    
+
+
+
+// THESE FUNCTIONS ADD THE TOOL FUNCTIONALITY FOR IMAGE SCROLLING AND CHANGING THE CONTRAST
+document.querySelector('.tool').onchange = function toolSelect(){
         if(document.getElementById("imagescroll").checked){
-            document.getElementById("dicomVeiwer").onwheel = function(event) {
+            document.getElementById("dicomViewer").onwheel = function(event) {
+              event.preventDefault();
                 if (event.deltaY < 0){
                     if(position == num_files-1){     
                     } else {
-                        var element = $('#dicomVeiwer').get(0);
+                        var element = $('#dicomViewer').get(0);
                         position = position + 1;
                         cornerstone.loadImage(imageIds[position]).then(function(image) {
                         image.slope= contrast/50 
@@ -379,7 +445,7 @@ Adjust Model Sensitivity
                     if(position == 0){
             
                     } else {
-                        var element = $('#dicomVeiwer').get(0);
+                        var element = $('#dicomViewer').get(0);
                         position = position - 1;
                         cornerstone.loadImage(imageIds[position]).then(function(image) {
                         image.slope= contrast/50 
@@ -387,39 +453,47 @@ Adjust Model Sensitivity
                         });
                         console.log(position);
                     }
-                }
-                };
-        }
+                  }
+                 };
+              }
         if(document.getElementById("contrast").checked){
-            console.log("contrast");
-            document.getElementById("dicomVeiwer").onwheel = function(event) {
+            console.log("adjust contrast");
+            document.getElementById("dicomViewer").onwheel = function(event) {
+              event.preventDefault();
                 if (event.deltaY < 0){
                     if(contrast < 0){
                     } else {
                         contrast = contrast - 1;
-                        var element = $('#dicomVeiwer').get(0);
+                        var element = $('#dicomViewer').get(0);
                         cornerstone.loadImage(imageIds[position+1]).then(function(image) {     
                             image.slope = contrast/50;
-                            cornerstone.displayImage(element, image);
-                        });
+                            const viewport = cornerstone.getViewport(element);
+                            console.log(image);
+                            cornerstone.displayImage(element, image, viewport);
+                        });                
                         cornerstone.loadImage(imageIds[position]).then(function(image) {
                         image.slope = contrast/50;
-                        console.log(image.slope, position);        
-                        cornerstone.displayImage(element, image);       
+                        console.log(image.slope, position);   
+                        const viewport = cornerstone.getViewport(element);
+                        cornerstone.displayImage(element, image, viewport);  
+                    
                         });
                     }
                 } else if (event.deltaY > 0){
                     if(contrast > 100){
                     } else {
                         contrast = contrast + 1;
-                        var element = $('#dicomVeiwer').get(0);
-                        cornerstone.loadImage(imageIds[position+1]).then(function(image) {     
+                        var element = $('#dicomViewer').get(0);
+                        cornerstone.loadImage(imageIds[position+1]).then(function(image) {   
                         image.slope = contrast/50;
-                        cornerstone.displayImage(element, image);
+                        const viewport = cornerstone.getViewport(element);
+                        cornerstone.displayImage(element, image, viewport);   
                         });
+
                         cornerstone.loadImage(imageIds[position]).then(function(image) {
                         image.slope = contrast/50;
-                        cornerstone.displayImage(element, image);       
+                        const viewport = cornerstone.getViewport(element);
+                        cornerstone.displayImage(element, image, viewport);      
                         });
                     }        
                 }
@@ -427,5 +501,4 @@ Adjust Model Sensitivity
         }
     }
 </script>
-
 </html>
