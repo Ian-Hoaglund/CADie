@@ -1,0 +1,73 @@
+<html> 
+<head>
+    <!doctype = html5>
+    <meta charset = "utf-8">
+    <title>cad.io</title>
+    <link rel="stylesheet" href="../Stylesheets/GithubStyle.css">
+
+</head>
+<body>
+    <h1>CAD.IO </h1> 
+<!-- A standard navbar with dropdown items--> 
+<nav> 
+    <div class="navbar">  
+        <a href = ../Index.html>Home</a> &nbsp 
+        <a href = ../DicomViewer.html>Dicom Viewer</a> &nbsp 
+        <div class="dropdown">
+            <button class="dropbtn">Computer Aided Diagnostics Models
+            </button>
+            <div class="dropdown-content">
+              <a href="Github4.html">About Brain Tumor Segmentation Model</a>
+            </div>
+          </div>
+          
+
+        <div class="dropdown">
+            <button class="dropbtn">Sample Dicom Files
+            </button>
+            <div class="dropdown-content">
+             <a href = ../DownloadDicom/DownloadDicom4.html >Sample Brain MRI</a> &nbsp 
+            </div>
+        </div>
+        <a href = ../contact.html>Contact</a>
+        </div>
+        </nav>
+<!-- end of navbar html-->
+
+<!-- A breif description of the value being predicted, the model and the dataset used to train it-->
+        <div class = ModelDescription>
+            <p>In this project, a convolutional neural network was trained using <i> <a href =https://www.kaggle.com/navoneel/brain-mri-images-for-brain-tumor-detection/metadata>Brain MRI Images for Brain Tumor Detection</a> </i>
+            which consists of brain MRIs. The goal of the project is to segment (outline) tumors in the brain to ease the workload of radiologists. 
+            </p>
+        </div>
+
+        
+<!--An image showing the model architecture and a table describing the models performance-->
+        <div class = ModelPerformance>
+          <p>
+            The Model used for prediction was a convolution neural network designed for image segmentation called a U-Net 
+            The model consists of 5 downsampling (convolutional) layers followed by 4 upsampling layers followed by a convolutional activation layer with 2 classes 
+            Trained on 30 epochs 
+          </p>
+        <img src="../U-netDiagram.png" alt="A chart showing the neural network architechure of the classifier" style = "max-width:75%; max-height:75%;">
+        <table>
+            <tr>
+              <th>Accuracy</th>
+              <th>F1 Score</th>
+            </tr>
+            <tr>
+              <td>89%</td>
+              <td>88%</td>
+            </tr>
+          </table>    
+        </div>
+        
+<!--links to view the github page or download the github repository directly-->
+        <div class = GitHubLinks>
+        <p>
+          for more information, see my <a href ="../DS440 Final Presentation" >powerpoint presentation</a>
+          or see the <a href = https://www.kaggle.com/datasets/mateuszbuda/lgg-mri-segmentation> the dataset </a>>
+          or the <a href = https://www.kaggle.com/code/lavdeep1234/segmentation>training scripts</a><br>
+        <p>click here to download my <a href = "../TumorSegmentationModelJS"> model files</a>
+      </p>
+        </div>
