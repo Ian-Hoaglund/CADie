@@ -359,7 +359,7 @@ function pngLoadImage(imageId) {
                 }
               }
               if(has_invalid_files){
-                alert("Invalid file types detected! \nOnly .dcm files are supported \nInvalid files:\n" + invalid_files.toString().replaceAll(",", "\n"));
+                alert("Invalid file types detected! \nOnly .png and .tiff files are supported \nInvalid files:\n" + invalid_files.toString().replaceAll(",", "\n"));
         }
         }); 
     });
@@ -369,7 +369,7 @@ function pngLoadImage(imageId) {
     document.getElementById("AnalyzeButton").onclick = async function ScanImages(){
             console.log("Analysing image for tumor segmentation")
             
-            const model = await tf.loadLayersModel("http://localhost:8000/TumorSegmentationModelJS/model.json");
+            const model = await tf.loadLayersModel("TumorSegmentationModelJS/model.json");
             cornerstone.loadImage(imageIds[position]).then(function(image){
 
                 
